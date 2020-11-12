@@ -36,13 +36,13 @@ import Text.XML.Cursor
 -- urn:oasis:names:tc:SAML:2.0:assertion namespace.
 saml2Name :: T.Text -> Name 
 saml2Name name = 
-    Name name (Just "urn:oasis:names:tc:SAML:2.0:assertion") (Just "saml2")
+    Name name (Just "urn:oasis:names:tc:SAML:2.0:assertion") (Just "saml")
 
 -- | 'saml2pName' @name@ constructs a 'Name' for @name@ in the 
 -- urn:oasis:names:tc:SAML:2.0:protocol namespace.
 saml2pName :: T.Text -> Name 
 saml2pName name =
-    Name name (Just "urn:oasis:names:tc:SAML:2.0:protocol") (Just "saml2p")
+    Name name (Just "urn:oasis:names:tc:SAML:2.0:protocol") (Just "samlp")
 
 -- | 'xencName' @name@ constructs a 'Name' for @name@ in the 
 -- http://www.w3.org/2001/04/xmlenc# namespace.
