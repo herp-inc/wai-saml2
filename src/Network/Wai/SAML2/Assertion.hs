@@ -82,16 +82,17 @@ instance FromXML SubjectConfirmation where
 -- | The subject of the assertion.
 data Subject = Subject {
     -- | The list of subject confirmation elements, if any.
-    subjectConfirmations :: ![SubjectConfirmation]
+    subjectConfirmations :: ![SubjectConfirmation],
+    subjectNameId :: !T.Text
 } deriving (Eq, Show)
 
 instance FromXML Subject where 
     parseXML cursor = do 
         confirmations <- sequence $ 
             cursor $/ element (saml2Name "SubjectConfirmation") &| parseXML
-
         pure Subject{
-            subjectConfirmations = confirmations
+            subjectConfirmations = confirmations,
+            subjectNameId        = T.concat $ cursor $/ element (saml2Name "NameID") &/ content
         }
 
 --------------------------------------------------------------------------------
