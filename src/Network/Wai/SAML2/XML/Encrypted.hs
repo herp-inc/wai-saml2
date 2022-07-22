@@ -72,25 +72,26 @@ data EncryptedKey = EncryptedKey {
     -- | The method used to encrypt the key.
     encryptedKeyMethod :: !EncryptionMethod,
     -- | The key data.
-    encryptedKeyData :: !KeyInfo,
+    encryptedKeyData :: !(Maybe KeyInfo),
     -- | The ciphertext.
     encryptedKeyCipher :: !CipherData
 } deriving (Eq, Show)
 
 instance FromXML EncryptedKey where 
     parseXML cursor =  do
-        method <- oneOrFail "EncryptionMethod is required" $
-            cursor $/ element (xencName "EncryptionMethod") 
-                >=> parseXML
+        method <- oneOrFail "EncryptionMethod is required" (
+            cursor $/ element (xencName "EncryptionMethod")
+                ) >>= parseXML
 
-        keyData <- oneOrFail "KeyInfo is required" $
-            cursor $/ element (dsName "KeyInfo") 
-                >=> parseXML
+        keyData <- case cursor $/ element (dsName "KeyInfo") >=> parseXML of
+            [] -> pure Nothing
+            [x] -> pure $ Just x
+            _ -> fail "Got more than one KeyInfo"
 
-        cipher <- oneOrFail "CipherData is required" $
+        cipher <- oneOrFail "CipherData is required" (
             cursor $/ element (xencName "CipherData")
-                >=> parseXML
-        
+                ) >>= parseXML
+
         pure EncryptedKey{
             encryptedKeyId = T.concat $ attribute "Id" cursor,
             encryptedKeyRecipient = T.concat $ attribute "Recipient" cursor,
@@ -113,21 +114,21 @@ data EncryptedAssertion = EncryptedAssertion {
 
 instance FromXML EncryptedAssertion where 
     parseXML cursor = do
-        algorithm <- oneOrFail "Algorithm is required" 
-                 $   cursor 
+        algorithm <- oneOrFail "Algorithm is required"
+                 (   cursor
                  $/  element (xencName "EncryptionMethod")
-                 >=> parseXML  
+                 ) >>= parseXML
 
-        keyInfo <- oneOrFail "KeyInfo is required" 
-               $   cursor 
-               $/  element (dsName "KeyInfo") 
-               &/  element (xencName "EncryptedKey") 
-               >=> parseXML
+        keyInfo <- oneOrFail "KeyInfo is required"
+               (   cursor
+               $/  element (dsName "KeyInfo")
+               &/  element (xencName "EncryptedKey")
+               ) >>= parseXML
 
-        cipher <- oneOrFail "CipherData is required" 
-               $  cursor 
+        cipher <- oneOrFail "CipherData is required"
+               (  cursor
               $/  element (xencName "CipherData")
-              >=> parseXML 
+              ) >>= parseXML
 
         pure EncryptedAssertion{
             encryptedAssertionAlgorithm = algorithm,
