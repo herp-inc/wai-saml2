@@ -72,7 +72,7 @@ data EncryptedKey = EncryptedKey {
     -- | The method used to encrypt the key.
     encryptedKeyMethod :: !EncryptionMethod,
     -- | The key data.
-    encryptedKeyData :: !KeyInfo,
+    encryptedKeyData :: !(Maybe KeyInfo),
     -- | The ciphertext.
     encryptedKeyCipher :: !CipherData
 } deriving (Eq, Show)
@@ -83,9 +83,10 @@ instance FromXML EncryptedKey where
             cursor $/ element (xencName "EncryptionMethod") 
                 >=> parseXML
 
-        keyData <- oneOrFail "KeyInfo is required" $
-            cursor $/ element (dsName "KeyInfo") 
-                >=> parseXML
+        keyData <- case cursor $/ element (dsName "KeyInfo") >=> parseXML of
+            [] -> pure Nothing
+            [x] -> pure $ Just x
+            _ -> fail "Got more than one KeyInfo"
 
         cipher <- oneOrFail "CipherData is required" $
             cursor $/ element (xencName "CipherData")
