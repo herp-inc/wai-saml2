@@ -62,11 +62,10 @@ instance FromXML Response where
             Nothing -> fail "Invalid status code"
             Just sc -> pure sc
 
-        encAssertion <- oneOrFail "EncryptedAssertion is required" 
+        encAssertion <- (oneOrFail "EncryptedAssertion is required"
                     $   cursor
-                    $/  element (saml2Name "EncryptedAssertion")
-                    &/  element (xencName "EncryptedData")
-                    >=> parseXML
+                    $/  element (saml2Name "EncryptedAssertion"))
+                    >>= parseXML
 
         signature <- oneOrFail "Signature is required" $
             cursor $/ element (dsName "Signature") >=> parseXML
