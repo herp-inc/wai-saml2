@@ -33,6 +33,7 @@ dependencies:
 - wai-extra >= 3.0 && < 4
 - vault >= 0.3 && < 1
 - cryptonite < 1
+- cryptostore >= 0.2 && <0.3
 - x509 < 2
 - x509-store < 2
 - xml-conduit < 2
