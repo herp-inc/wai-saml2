@@ -10,6 +10,7 @@ import Data.Text (Text)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import Network.Wai.SAML2.NameIDFormat
 import Network.Wai.SAML2.XML
 import Text.XML.Cursor
 
@@ -21,7 +22,7 @@ data IDPSSODescriptor
         -- ^ IdP Entity ID. 'Network.Wai.SAML2.Config.saml2ExpectedIssuer' should be compared against this identifier
     ,   x509Certificate :: X509.SignedExact X509.Certificate
         -- ^ The X.509 certificate for signed assertions
-    ,   nameIDFormats :: [Text]
+    ,   nameIDFormats :: [NameIDFormat]
         -- ^ Supported NameID formats
     ,   singleSignOnServices :: Map.Map Binding Text
         -- ^ List of SSO urls corresponding to 'Binding's
@@ -57,9 +58,10 @@ instance FromXML IDPSSODescriptor where
             , rawCertificate
             , "-----END CERTIFICATE-----"
             ]
-        let nameIDFormats = descriptor
-                $/ element (mdName "NameIDFormat")
-                &/ content
+        nameIDFormats <- traverse parseNameIDFormat
+            $ descriptor
+            $/ element (mdName "NameIDFormat")
+            &/ content
         singleSignOnServices <- fmap Map.fromList
             $ traverse parseService
             $ descriptor $/ element (mdName "SingleSignOnService")
