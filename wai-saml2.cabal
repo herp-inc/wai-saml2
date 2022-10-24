@@ -20,6 +20,8 @@ build-type:     Simple
 extra-source-files:
     README.md
     CHANGELOG.md
+    tests/data/google.xml
+    tests/data/google.xml.expected
     tests/data/keycloak.xml
     tests/data/keycloak.xml.expected
     tests/data/okta.xml
@@ -56,6 +58,7 @@ library
   ghc-options: -W
   build-depends:
       base >=4.8 && <5
+    , base16-bytestring ==1.0.*
     , base64-bytestring >=0.1 && <2
     , bytestring >=0.9 && <0.12
     , c14n >=0.1.0.1 && <1
@@ -89,6 +92,7 @@ test-suite parser
   ghc-options: -Wall -Wcompat
   build-depends:
       base
+    , base16-bytestring ==1.0.*
     , base64-bytestring >=0.1 && <2
     , bytestring
     , c14n >=0.1.0.1 && <1
