@@ -23,7 +23,7 @@ import Text.XML.C14N
 
 -- | 'canonicalise' @xml@ produces a canonical representation of @xml@.
 canonicalise :: BS.ByteString -> IO BS.ByteString
-canonicalise xml = c14n c14nOpts c14n_exclusive_1_0 [] False Nothing xml
+canonicalise xml = c14n c14nOpts c14n_exclusive_1_0 ["xs"] False Nothing xml
 
 -- | The options we want to use for canonicalisation of XML documents.
 c14nOpts :: [CInt]

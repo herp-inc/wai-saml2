@@ -7,7 +7,7 @@ import Network.Wai.SAML2
 import Network.Wai.SAML2.C14N
 import Network.Wai.SAML2.Validation
 import Network.Wai.SAML2.Response
-import Text.XML
+import Data.Default.Class
 import RIO
 import System.Environment
 import qualified Data.ByteString.Base64 as BS
@@ -52,5 +52,7 @@ main = getArgs >>= \case
         print result
     [path] -> do
         normalised <- readFileBinary path
-        print $ hashWith SHA256 normalised
+        canon <- canonicalise normalised
+        print canon
+        -- print $ hashWith SHA256 normalised
     _ -> fail "cabal run validate okta.crt okta.b64"
