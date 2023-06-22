@@ -11,6 +11,7 @@ module Network.Wai.SAML2.Response (
     Response(..),
     removeSignature,
     extractSignedInfo,
+    extractPrefixList,
 
     -- * Re-exports
     module Network.Wai.SAML2.StatusCode,
@@ -132,6 +133,15 @@ extractSignedInfo cursor = do
                            &/ element (dsName "SignedInfo")
                           ) >>= nodes
     pure signedInfo
+
+extractPrefixList :: Cursor -> [T.Text]
+extractPrefixList cursor = concatMap T.words
+    $ concatMap (attribute "PrefixList")
+    $ cursor
+    $/ element (dsName "Reference")
+    &/ element (dsName "Transforms")
+    &/ element (dsName "Transform")
+    &/ element (ecName "InclusiveNamespaces")
 
 --------------------------------------------------------------------------------
 

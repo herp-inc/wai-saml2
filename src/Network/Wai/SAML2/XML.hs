@@ -13,6 +13,7 @@ module Network.Wai.SAML2.XML (
     xencName,
     dsName,
     mdName,
+    ecName,
 
     -- * Utility functions
     toMaybeText,
@@ -66,6 +67,12 @@ mdName :: T.Text -> Name
 mdName name =
     Name name (Just "urn:oasis:names:tc:SAML:2.0:metadata") (Just "md")
 
+
+-- | 'ecName' @name@ constructs a 'Name' for @name@ in the
+-- http://www.w3.org/2001/10/xml-exc-c14n# namespace.
+ecName :: T.Text -> Name
+ecName name =
+    Name name (Just "http://www.w3.org/2001/10/xml-exc-c14n#") (Just "ec")
 
 -- | 'toMaybeText' @xs@ returns 'Nothing' if @xs@ is the empty list, or
 -- the result of concatenating @xs@ wrapped in 'Just' otherwise.

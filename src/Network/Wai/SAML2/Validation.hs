@@ -130,8 +130,9 @@ validateSAMLResponse cfg responseXmlDoc samlResponse now = do
     let signedInfoXml = XML.renderLBS def doc
 
     -- canonicalise the textual representation of the SignedInfo element
+    let prefixList = extractPrefixList (XML.fromDocument doc)
     signedInfoCanonResult <- liftIO $ try $
-        canonicalise (LBS.toStrict signedInfoXml)
+        canonicalise prefixList (LBS.toStrict signedInfoXml)
 
     normalisedSignedInfo <- case signedInfoCanonResult of
         Left err -> throwError $ CanonicalisationFailure err
@@ -161,7 +162,7 @@ validateSAMLResponse cfg responseXmlDoc samlResponse now = do
 
     -- then render the resulting document and canonicalise it
     let renderedXml = XML.renderLBS def docMinusSignature
-    refCanonResult <- liftIO $ try $ canonicalise (LBS.toStrict renderedXml)
+    refCanonResult <- liftIO $ try $ canonicalise prefixList (LBS.toStrict renderedXml)
 
     normalised <- case refCanonResult of
         Left err -> throwError $ CanonicalisationFailure err
