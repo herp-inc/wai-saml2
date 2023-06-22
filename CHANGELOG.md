@@ -1,5 +1,7 @@
 # Changelog for `wai-saml2`
 
+-   Fixed a bug in XML canonicalisation causing a digest mismatch on Okta when assertion attributes are present (special thanks to @hiroqn) ([#51](https://github.com/mbg/wai-saml2/pull/51) by [@fumieval](https://github.com/fumieval))
+
 ## 0.4
 
 -   Split `validateResponse` into `decodeResponse` and `validateSAMLResponse` ([#31](https://github.com/mbg/wai-saml2/pull/31) by [@fumieval](https://github.com/fumieval))

@@ -21,7 +21,8 @@ module Network.Wai.SAML2.XML (
 
     -- * XML parsing
     FromXML(..),
-    oneOrFail
+    oneOrFail,
+    parseSettings
 ) where
 
 --------------------------------------------------------------------------------
@@ -100,3 +101,8 @@ oneOrFail err [] = fail err
 oneOrFail _ (x:_) = pure x
 
 --------------------------------------------------------------------------------
+
+-- | It is important to retain namespaces in order to calculate the hash of the canonicalised XML correctly.
+-- see: https://stackoverflow.com/questions/69252831/saml-2-0-digest-value-calculation-in-saml-assertion
+parseSettings :: ParseSettings
+parseSettings = def { psRetainNamespaces = True }

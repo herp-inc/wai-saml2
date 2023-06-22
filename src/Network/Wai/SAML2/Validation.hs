@@ -69,7 +69,7 @@ decodeResponse responseData = do
 
     -- try to parse the XML document; throw an exception if it is not
     -- a valid XML document
-    responseXmlDoc <- case XML.parseLBS def (LBS.fromStrict resXmlDocData) of
+    responseXmlDoc <- case XML.parseLBS parseSettings (LBS.fromStrict resXmlDocData) of
         Left err -> throwError $ InvalidResponseXml err
         Right responseXmlDoc -> pure responseXmlDoc
 
