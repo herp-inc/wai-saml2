@@ -188,7 +188,7 @@ validateSAMLSignature ValidationContext{..} = do
     -- construct a new XML document from the SignedInfo element and render
     -- it into a textual representation
     let doc = XML.Document (XML.Prologue [] Nothing []) signedInfo []
-    let signedInfoXml = XML.renderLBS def doc
+    let signedInfoXml = XML.renderLBS def $ trimWhitespaces doc
 
     -- canonicalise the textual representation of the SignedInfo element
     let prefixList = extractPrefixList (XML.fromDocument doc)
@@ -200,7 +200,7 @@ validateSAMLSignature ValidationContext{..} = do
         Right result -> pure result
 
     -- then render the resulting document and canonicalise it
-    let renderedXml = XML.renderLBS def docMinusSignature
+    let renderedXml = XML.renderLBS def $ trimWhitespaces docMinusSignature
     refCanonResult <- liftIO $ try $ canonicalise prefixList (LBS.toStrict renderedXml)
 
     normalised <- case refCanonResult of
