@@ -23,11 +23,15 @@ module Network.Wai.SAML2.XML (
     -- * XML parsing
     FromXML(..),
     oneOrFail,
-    parseSettings
+    parseSettings,
+
+    -- * XML processing
+    trimWhitespaces,
 ) where
 
 --------------------------------------------------------------------------------
 
+import Data.Char (isSpace)
 import qualified Data.Text as T
 import Data.Time
 import Data.Time.Format.ISO8601 (iso8601ParseM)
@@ -117,3 +121,17 @@ oneOrFail _ (x:_) = pure x
 -- @since 0.5
 parseSettings :: ParseSettings
 parseSettings = def { psRetainNamespaces = True }
+
+-- | 'trimWhitespaces' @doc@ trims all whitespace-only text nodes from @doc@.
+trimWhitespaces :: Document -> Document
+trimWhitespaces doc = doc { documentRoot = trimElement (documentRoot doc) }
+  where
+    trimElement :: Element -> Element
+    trimElement elem = elem { elementNodes = concatMap trimNode (elementNodes elem) }
+
+    trimNode :: Node -> [Node]
+    trimNode (NodeContent t)
+      | T.all isSpace t = []  -- Remove whitespace-only text nodes
+      | otherwise = [NodeContent t]
+    trimNode (NodeElement e) = [NodeElement (trimElement e)]  -- Recursively trim child elements
+    trimNode n = [n]  -- Keep comments and instructions as-is

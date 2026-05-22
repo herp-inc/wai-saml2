@@ -31,6 +31,7 @@ import Data.Time
 import Text.XML.Cursor
 
 import Network.Wai.SAML2.NameIDFormat
+import Network.Wai.SAML2.Signature
 import Network.Wai.SAML2.XML
 
 --------------------------------------------------------------------------------
@@ -230,19 +231,24 @@ data AssertionAttribute = AssertionAttribute {
     attributeFriendlyName :: !(Maybe T.Text),
     -- | The name format.
     attributeNameFormat :: !T.Text,
-    -- | The value of the attribute.
-    attributeValue :: !T.Text
+    -- | The value of the attribute, concatened from the 'attributeValues'.
+    attributeValue :: !T.Text,
+    -- | The values of the attribute.
+    --
+    -- @since 0.7
+    attributeValues :: ![T.Text]
 } deriving (Eq, Show)
 
 instance FromXML AssertionAttribute where
     parseXML cursor = do
+        let attributeValues = cursor $/ element (saml2Name "AttributeValue") &/ content
         pure AssertionAttribute{
             attributeName = T.concat $ attribute "Name" cursor,
             attributeFriendlyName =
                 toMaybeText $ attribute "FriendlyName" cursor,
             attributeNameFormat = T.concat $ attribute "NameFormat" cursor,
-            attributeValue = T.concat $
-                cursor $/ element (saml2Name "AttributeValue") &/ content
+            attributeValue = T.concat attributeValues,
+            attributeValues = attributeValues
         }
 
 -- | SAML2 assertion statements (collections of assertion attributes).
@@ -273,7 +279,9 @@ data Assertion = Assertion {
     -- | The authentication statement included in the assertion.
     assertionAuthnStatement :: !AuthnStatement,
     -- | The assertion's attribute statement.
-    assertionAttributeStatement :: !AttributeStatement
+    assertionAttributeStatement :: !AttributeStatement,
+    -- | The assertion's signature.
+    assertionSignature :: !(Maybe Signature)
 } deriving (Eq, Show)
 
 -- Reference [Assertion]
@@ -301,7 +309,9 @@ instance FromXML Assertion where
             assertionAuthnStatement = authnStatement,
             assertionAttributeStatement =
                 cursor $/ element (saml2Name "AttributeStatement")
-                    >=> parseAttributeStatement
+                    >=> parseAttributeStatement,
+            assertionSignature = listToMaybe $
+                cursor $/ element (dsName "Signature") >=> parseXML
         }
 
 --------------------------------------------------------------------------------
