@@ -45,6 +45,8 @@ dependencies:
 
 library:
   source-dirs: src
+  other-modules:
+    - Network.Wai.SAML2.XML.Source
   ghc-options:
     - -W
 

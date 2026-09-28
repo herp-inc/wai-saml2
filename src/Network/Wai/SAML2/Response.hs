@@ -9,6 +9,7 @@
 module Network.Wai.SAML2.Response (
     -- * SAML2 responses
     Response(..),
+    ResponseSource(..),
     removeSignature,
     extractSignedInfo,
     extractPrefixList,
@@ -20,6 +21,7 @@ module Network.Wai.SAML2.Response (
 
 --------------------------------------------------------------------------------
 
+import qualified Data.ByteString as BS
 import Data.Maybe (listToMaybe)
 import qualified Data.Text as T
 import Data.Time
@@ -34,6 +36,19 @@ import Network.Wai.SAML2.StatusCode
 import Network.Wai.SAML2.Signature
 
 --------------------------------------------------------------------------------
+
+-- | Original XML bytes for a decoded SAML response.
+--
+-- 'Network.Wai.SAML2.Validation.decodeResponse' stores the bytes it
+-- parsed. 'parseXML' produces an empty value. 'Show' prints the length
+-- of the bytes rather than their contents.
+--
+-- @since 0.8
+newtype ResponseSource = ResponseSource BS.ByteString
+    deriving Eq
+
+instance Show ResponseSource where
+    show (ResponseSource bs) = show (BS.length bs)
 
 -- | Represents SAML2 responses.
 
@@ -64,7 +79,11 @@ data Response = Response {
     -- | The encrypted assertion.
     --
     -- @since 0.4
-    responseEncryptedAssertion :: !(Maybe EncryptedAssertion)
+    responseEncryptedAssertion :: !(Maybe EncryptedAssertion),
+    -- | XML bytes retained for a second signature check.
+    --
+    -- @since 0.8
+    responseSource :: !ResponseSource
 } deriving (Eq, Show)
 
 instance FromXML Response where
@@ -100,7 +119,8 @@ instance FromXML Response where
             responseSignature = listToMaybe $
                 (cursor $/ element (dsName "Signature")) >>= parseXML,
             responseAssertion = assertion,
-            responseEncryptedAssertion = encAssertion
+            responseEncryptedAssertion = encAssertion,
+            responseSource = ResponseSource BS.empty
         }
 
 --------------------------------------------------------------------------------

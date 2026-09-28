@@ -1,5 +1,9 @@
 # Changelog for `wai-saml2`
 
+## Unreleased
+
+-   When the digest of a re-rendered SAML document does not match, repeat the digest and signature checks on the original XML bytes. Documents that contain whitespace-only text nodes can verify. Documents that already verify are unchanged.
+
 ## 0.7
 
 -   Replaced `x509Certificate` with `x509Certificates` in `IDPSSODescriptor` so that it may have more than one certificate ([#65](https://github.com/mbg/wai-saml2/pull/65) by [@fumieval](https://github.com/fumieval))

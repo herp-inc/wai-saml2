@@ -76,4 +76,5 @@ Response
           , assertionSignature = Nothing
           }
   , responseEncryptedAssertion = Nothing
+  , responseSource = 0
   }
