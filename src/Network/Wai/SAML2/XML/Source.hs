@@ -77,15 +77,27 @@ stripEnvelopedSignatures xml = do
 -- @assertionId@. Nested assertions are ignored, so the copied element is
 -- the one the response parser returns. Namespace declarations that are in
 -- scope from an ancestor are repeated on the copied element.
+-- A document that contains a DOCTYPE declaration is rejected.
 extractAssertion :: BS.ByteString
                  -> BS.ByteString
                  -> Either String BS.ByteString
-extractAssertion xml assertionId = do
-    root <- parseDocument xml
-    el <- case findAssertion assertionId root of
-        Just found -> pure found
-        Nothing -> Left "Assertion was not found"
-    pure $ materialise xml el
+extractAssertion xml assertionId
+    | containsDoctype xml = Left "DOCTYPE is not allowed"
+    | otherwise = do
+        root <- parseDocument xml
+        el <- case findAssertion assertionId root of
+            Just found -> pure found
+            Nothing -> Left "Assertion was not found"
+        pure $ materialise xml el
+
+-- | 'True' when @xml@ contains a DOCTYPE declaration, ignoring case.
+containsDoctype :: BS.ByteString -> Bool
+containsDoctype xml =
+    BS.isInfixOf (BS8.pack "<!doctype") (BS.map asciiLower xml)
+    where
+        asciiLower w
+            | w >= 65 && w <= 90 = w + 32
+            | otherwise = w
 
 -- | 'extractSignedInfo' @xml@ copies the @SignedInfo@ element from the
 -- first direct-child @Signature@ of the document element. Namespace
