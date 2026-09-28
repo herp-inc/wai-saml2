@@ -72,9 +72,11 @@ stripEnvelopedSignatures xml = do
             ]
     pure $ deleteRanges xml ranges
 
--- | 'extractAssertion' @xml assertionId@ copies the assertion whose @ID@
--- is @assertionId@ out of @xml@. Namespace declarations that are in scope
--- from an ancestor are repeated on the copied element.
+-- | 'extractAssertion' @xml assertionId@ copies the first @Assertion@ that
+-- is a direct child of the document element, when its @ID@ is
+-- @assertionId@. Nested assertions are ignored, so the copied element is
+-- the one the response parser returns. Namespace declarations that are in
+-- scope from an ancestor are repeated on the copied element.
 extractAssertion :: BS.ByteString
                  -> BS.ByteString
                  -> Either String BS.ByteString
@@ -110,18 +112,20 @@ directChild ns local parent = case
         (el:_) -> Just el
         [] -> Nothing
 
--- | Depth-first search for an assertion with the given @ID@ value.
+-- | The first direct-child assertion, when its @ID@ is @assertionId@.
+-- This follows the response parser, which reads that same element and
+-- ignores assertions nested inside other elements.
 findAssertion :: BS.ByteString -> Elem -> Maybe Elem
-findAssertion assertionId el
-    | elNs el == samlAssertionNs
+findAssertion assertionId root = case
+    [ el
+    | el <- elChildren root
+    , elNs el == samlAssertionNs
     , elLocal el == BS8.pack "Assertion"
-    , lookupAttr (BS8.pack "ID") (elAttrs el) == Just assertionId
-    = Just el
-    | otherwise = foldr pick Nothing
-        (map (findAssertion assertionId) (elChildren el))
-    where
-        pick (Just found) _ = Just found
-        pick Nothing rest = rest
+    ] of
+        (el:_)
+            | lookupAttr (BS8.pack "ID") (elAttrs el) == Just assertionId ->
+                Just el
+        _ -> Nothing
 
 -- | Look up an attribute by its raw name.
 lookupAttr :: BS.ByteString
