@@ -293,8 +293,11 @@ validateSAMLSignature ValidationContext{..} = do
         when (BS.null source) $ throwError InvalidDigest
         target <- case signedAssertionId of
             Nothing -> pure source
-            Just aid -> fromSource
-                (Source.extractAssertion source (TE.encodeUtf8 aid))
+            Just aid -> do
+                extracted <- fromSource
+                    (Source.extractAssertion source (TE.encodeUtf8 aid))
+                matchesReturnedSubject extracted
+                pure extracted
         stripped <- fromSource (Source.stripEnvelopedSignatures target)
         normalised2 <- renderCanon prefixList stripped
         let documentHash2 = hashWith SHA256 normalised2
@@ -308,6 +311,22 @@ validateSAMLSignature ValidationContext{..} = do
     fromSource :: Either String BS.ByteString -> ExceptT SAML2Error IO BS.ByteString
     fromSource (Left _) = throwError InvalidDigest
     fromSource (Right bytes) = pure bytes
+
+    -- The extracted assertion must name the same subject as the assertion
+    -- that will be returned. Both names are read with the response parser.
+    matchesReturnedSubject :: BS.ByteString -> ExceptT SAML2Error IO ()
+    matchesReturnedSubject bytes = do
+        expected <- case responseAssertion samlResponse of
+            Just assertion -> pure assertion
+            Nothing -> throwError InvalidDigest
+        parsed <- case XML.parseLBS parseSettings (LBS.fromStrict bytes) of
+            Left _ -> throwError InvalidDigest
+            Right doc -> case parseXML (XML.fromDocument doc) of
+                Just assertion -> pure assertion
+                Nothing -> throwError InvalidDigest
+        let subjectName = nameIDValue . subjectNameID . assertionSubject
+        when (subjectName parsed /= subjectName expected) $
+            throwError InvalidDigest
 
     -- Exclusive-canonicalise @bytes@, or report a canonicalisation error.
     renderCanon :: [T.Text] -> BS.ByteString -> ExceptT SAML2Error IO BS.ByteString
