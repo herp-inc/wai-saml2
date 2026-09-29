@@ -31,6 +31,8 @@ import Crypto.Cipher.Types
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as BS
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import Data.Default.Class
 import Data.Time
 
@@ -38,6 +40,7 @@ import Network.Wai.SAML2.XML.Encrypted
 import Network.Wai.SAML2.Config
 import Network.Wai.SAML2.Error
 import Network.Wai.SAML2.XML
+import qualified Network.Wai.SAML2.XML.Source as Source
 import Network.Wai.SAML2.C14N
 import Network.Wai.SAML2.Response
 import Network.Wai.SAML2.Assertion
@@ -81,7 +84,10 @@ decodeResponse responseData = do
 
     case resParseResult of
         Left err -> throwError $ InvalidResponse err
-        Right samlResponse -> pure (responseXmlDoc, samlResponse)
+        Right samlResponse -> pure
+            ( responseXmlDoc
+            , samlResponse { responseSource = ResponseSource resXmlDocData }
+            )
 
 -- | 'validateSAMLPreliminary' @cfg samlResponse@ validates the status code, destination, and issuer of a SAML2 response.
 --
@@ -142,6 +148,9 @@ data ValidationContext = ValidationContext
     , signedInfo :: XML.Element
     , signature :: Signature
     , docMinusSignature :: XML.Document
+    -- | 'Nothing' when the response itself is signed. 'Just' the assertion
+    -- identifier when that assertion is signed.
+    , signedAssertionId :: Maybe T.Text
     }
 
 -- | Validate a response signature and return the assertion.
@@ -180,6 +189,7 @@ validateSAMLResponseSignature cfg responseXmlDoc samlResponse signature now = do
     -- from it (since the Response cannot possibly have been hashed with
     -- the Signature element present). First remove the Signature element:
     let docMinusSignature = removeSignature responseXmlDoc
+    let signedAssertionId = Nothing
 
     validateSAMLSignature ValidationContext{..}
 
@@ -213,15 +223,19 @@ validateSAMLSignature ValidationContext{..} = do
     -- then the response has not been tampered with, assuming that the
     -- Signature has not been tampered with, which we validate next
     let documentHash = hashWith SHA256 normalised
-    let referenceHash = digestFromByteString
+        referenceHash = digestFromByteString
                       $ BS.decodeLenient
                       $ referenceDigestValue
                       $ signedInfoReference
                       $ signatureInfo signature
 
-    if Just documentHash /= referenceHash
-    then throwError InvalidDigest
-    else pure ()
+    -- Some identity providers sign the original document, including
+    -- whitespace-only text nodes. Re-rendering drops those nodes, so the
+    -- digest does not match. Repeat the check on the original bytes in
+    -- that case. A document that already matches is not checked again.
+    signedInfoForSignature <- if Just documentHash == referenceHash
+        then pure normalisedSignedInfo
+        else originalBytesSignedInfo prefixList referenceHash
 
     --  *SIGNATURE VALIDATION*
     -- We need to check that the SignedInfo element has not been tampered
@@ -233,7 +247,7 @@ validateSAMLSignature ValidationContext{..} = do
     -- check that the signature is correct
     let pubKey = saml2PublicKey cfg
 
-    if PKCS15.verify (Just SHA256) pubKey normalisedSignedInfo sig
+    if PKCS15.verify (Just SHA256) pubKey signedInfoForSignature sig
     then pure ()
     else throwError InvalidSignature
 
@@ -268,6 +282,59 @@ validateSAMLSignature ValidationContext{..} = do
 
     -- all checks out, return the assertion
     pure assertion
+  where
+    -- Repeat the digest and signature-input checks on the original XML.
+    originalBytesSignedInfo
+        :: [T.Text]
+        -> Maybe (Digest SHA256)
+        -> ExceptT SAML2Error IO BS.ByteString
+    originalBytesSignedInfo prefixList referenceHash = do
+        let ResponseSource source = responseSource samlResponse
+        when (BS.null source) $ throwError InvalidDigest
+        target <- case signedAssertionId of
+            Nothing -> pure source
+            Just aid -> do
+                extracted <- fromSource
+                    (Source.extractAssertion source (TE.encodeUtf8 aid))
+                matchesReturnedSubject extracted
+                pure extracted
+        stripped <- fromSource (Source.stripEnvelopedSignatures target)
+        normalised2 <- renderCanon prefixList stripped
+        let documentHash2 = hashWith SHA256 normalised2
+        if Just documentHash2 /= referenceHash
+            then throwError InvalidDigest
+            else do
+                info <- fromSource (Source.extractSignedInfo target)
+                renderCanon prefixList info
+
+    -- Turn a byte-level failure into a digest mismatch.
+    fromSource :: Either String BS.ByteString -> ExceptT SAML2Error IO BS.ByteString
+    fromSource (Left _) = throwError InvalidDigest
+    fromSource (Right bytes) = pure bytes
+
+    -- The extracted assertion must name the same subject as the assertion
+    -- that will be returned. Both names are read with the response parser.
+    matchesReturnedSubject :: BS.ByteString -> ExceptT SAML2Error IO ()
+    matchesReturnedSubject bytes = do
+        expected <- case responseAssertion samlResponse of
+            Just assertion -> pure assertion
+            Nothing -> throwError InvalidDigest
+        parsed <- case XML.parseLBS parseSettings (LBS.fromStrict bytes) of
+            Left _ -> throwError InvalidDigest
+            Right doc -> case parseXML (XML.fromDocument doc) of
+                Just assertion -> pure assertion
+                Nothing -> throwError InvalidDigest
+        let subjectName = nameIDValue . subjectNameID . assertionSubject
+        when (subjectName parsed /= subjectName expected) $
+            throwError InvalidDigest
+
+    -- Exclusive-canonicalise @bytes@, or report a canonicalisation error.
+    renderCanon :: [T.Text] -> BS.ByteString -> ExceptT SAML2Error IO BS.ByteString
+    renderCanon prefixes bytes = do
+        result <- liftIO $ try $ canonicalise prefixes bytes
+        case result of
+            Left err -> throwError $ CanonicalisationFailure err
+            Right ok -> pure ok
 
 -- | Validate the signature of an assertion and return the assertion.
 validateSAMLAssertionSignature :: SAML2Config -> XML.Document -> Response -> UTCTime -> ExceptT SAML2Error IO Assertion
@@ -293,6 +360,8 @@ validateSAMLAssertionSignature cfg responseXmlDoc samlResponse now = do
             , documentEpilogue = []
             }
         _ -> throwError $ InvalidResponse $ userError "Assertion is not a valid XML element"
+
+    let signedAssertionId = Just (assertionId assertion)
 
     validateSAMLSignature ValidationContext{..}
 

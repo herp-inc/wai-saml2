@@ -1,5 +1,12 @@
 # Changelog for `wai-saml2`
 
+## Unreleased
+
+-   When the digest of a re-rendered SAML document does not match, repeat the digest and signature checks on the original XML bytes. Documents that contain whitespace-only text nodes can verify. Documents that already verify are unchanged.
+-   An assertion signature is checked against the assertion element the response parser returns. A nested element with the same identifier is not accepted in its place.
+-   An assertion signature checked against the original XML is rejected when that XML contains a DOCTYPE declaration.
+-   An assertion signature checked against the original XML is rejected when that assertion names a different subject than the assertion which would be returned.
+
 ## 0.7
 
 -   Replaced `x509Certificate` with `x509Certificates` in `IDPSSODescriptor` so that it may have more than one certificate ([#65](https://github.com/mbg/wai-saml2/pull/65) by [@fumieval](https://github.com/fumieval))
